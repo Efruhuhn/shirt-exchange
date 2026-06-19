@@ -178,8 +178,7 @@ function adminPage(ev, participants, baseUrl, { mailConfigured, message } = {}) 
       (p) => `<tr>
       <td>${esc(p.name)}</td>
       <td>${esc(p.email)}</td>
-      <td>${p.size ? `<span class="tag">${esc(p.size)}</span>` : '<span class="muted">—</span>'}</td>
-      <td>${esc(p.fit || '')}</td>
+      <td>${p.size ? '✅' : '<span class="muted">—</span>'}</td>
     </tr>`
     )
     .join('');
@@ -207,7 +206,7 @@ ${
 ${
   participants.length
     ? `<table class="list">
-  <thead><tr><th>Name</th><th>E-Mail</th><th>Größe</th><th>Schnitt</th></tr></thead>
+  <thead><tr><th>Name</th><th>E-Mail</th><th>Größe eingetragen</th></tr></thead>
   <tbody>${rows}</tbody>
 </table>`
     : '<p class="muted">Noch niemand eingetragen.</p>'

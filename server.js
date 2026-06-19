@@ -54,6 +54,9 @@ app.post('/join/:code', async (req, res) => {
   if (!isEmail(email)) {
     return res.status(400).send(V.joinPage(ev, baseUrl(req), { error: 'Bitte eine gültige E-Mail angeben.', prefill }));
   }
+  if (!size || !V.SIZES.includes(size)) {
+    return res.status(400).send(V.joinPage(ev, baseUrl(req), { error: 'Bitte eine Shirt-Größe auswählen.', prefill }));
+  }
   if (store.findParticipantByEmail(ev.id, email)) {
     return res
       .status(400)
