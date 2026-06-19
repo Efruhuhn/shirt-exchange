@@ -84,8 +84,9 @@ app.post('/join/:code', async (req, res) => {
 // ---------- Teilnehmer-Bereich ----------
 
 app.get('/p/:token', (req, res) => {
-  const p = store.getParticipantByToken(req.params.token);
-  if (!p) return res.status(404).send(V.simplePage('Nicht gefunden', 'Ups', 'Dieser Link ist ungültig.'));
+  const raw = store.getParticipantByToken(req.params.token);
+  if (!raw) return res.status(404).send(V.simplePage('Nicht gefunden', 'Ups', 'Dieser Link ist ungültig.'));
+  const p = { ...raw };
   const ev = store.getEvent(p.eventId);
   if (ev.drawnAt && p.assignedToId) p._target = store.getParticipant(p.assignedToId);
   res.send(V.participantPage(p, ev, baseUrl(req), { saved: req.query.saved === '1' }));
