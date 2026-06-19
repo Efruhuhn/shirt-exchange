@@ -88,11 +88,24 @@ button:hover, .btn:hover { filter: brightness(1.05); }
 button:disabled { background: #c2c6d4; cursor: not-allowed; }
 button.secondary { background: var(--accent2); }
 
+.copybox {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
 .copybox input {
+  flex: 1;
   background: #f3f4fb;
   font-family: ui-monospace, monospace;
   font-size: 0.85rem;
   cursor: pointer;
+}
+.copybox button {
+  margin-top: 0;
+  padding: 0.7rem 1rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  background: var(--accent2);
 }
 
 table.list, table.kv {

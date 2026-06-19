@@ -47,6 +47,14 @@ function fitSelect(selected) {
   return `<select name="fit"><option value="">egal / keine Angabe</option>${opts}</select>`;
 }
 
+function copyBox(url) {
+  const id = `cb_${Math.random().toString(36).slice(2, 8)}`;
+  return `<div class="copybox">
+  <input id="${id}" readonly value="${esc(url)}" onclick="this.select()">
+  <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('${id}').value).then(()=>{this.textContent='✓ Kopiert';setTimeout(()=>this.textContent='Kopieren',2000)})">Kopieren</button>
+</div>`;
+}
+
 // ---------- Seiten ----------
 
 function homePage() {
@@ -78,11 +86,11 @@ function eventCreatedPage(ev, baseUrl) {
 <p>Bewahre diese beiden Links gut auf:</p>
 
 <h2>🔧 Dein Orga-Link <span class="muted small">(nur für dich!)</span></h2>
-<div class="copybox"><input readonly value="${esc(adminUrl)}" onclick="this.select()"></div>
+${copyBox(adminUrl)}
 <p class="muted small">Hier verwaltest du die Aktion und startest die Auslosung. Nicht weitergeben.</p>
 
 <h2>📨 Beitritts-Link <span class="muted small">(in die Gruppe teilen)</span></h2>
-<div class="copybox"><input readonly value="${esc(joinUrl)}" onclick="this.select()"></div>
+${copyBox(joinUrl)}
 <p class="muted small">Über diesen Link tragen sich alle mit Name, E-Mail und Shirt-Größe ein.</p>
 
 <p><a class="btn" href="${esc(adminUrl)}">Weiter zur Orga-Seite →</a></p>`
@@ -197,7 +205,7 @@ ${
 }
 
 <h2>📨 Beitritts-Link teilen</h2>
-<div class="copybox"><input readonly value="${esc(joinUrl)}" onclick="this.select()"></div>
+${copyBox(joinUrl)}
 <p class="muted small">Diesen Link in die Gruppe schicken, damit sich alle eintragen.</p>
 
 <h2>👥 Teilnehmer:innen (${participants.length})</h2>
