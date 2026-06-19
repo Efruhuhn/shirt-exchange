@@ -1,0 +1,29 @@
+# Geheime Shirt-Auslosung – Docker Compose
+#
+# Schnellstart:
+#   1. cp .env.example .env   und Werte (v.a. BASE_URL + SMTP) eintragen
+#   2. docker compose up -d --build
+#   3. App läuft auf http://localhost:3000  (bzw. ${HOST_PORT})
+#
+# Die Auslosung wird im benannten Volume "shirt-data" persistent gespeichert,
+# bleibt also über Neustarts / Rebuilds hinweg erhalten.
+
+services:
+  app:
+    build: .
+    image: shirt-exchange
+    container_name: shirt-exchange
+    restart: unless-stopped
+    # Konfiguration (BASE_URL, SMTP_*, MAIL_FROM) kommt aus der .env-Datei.
+    env_file:
+      - .env
+    # Intern lauscht die App immer auf 3000; nach außen mappbar über HOST_PORT.
+    environment:
+      PORT: 3000
+    ports:
+      - "${HOST_PORT:-3000}:3000"
+    volumes:
+      - shirt-data:/app/data
+
+volumes:
+  shirt-data:
