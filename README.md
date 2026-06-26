@@ -48,6 +48,25 @@ nur ins Terminal/Server-Log geschrieben (mit dem jeweiligen geheimen Link) – i
 3. `BASE_URL` auf die öffentliche Adresse setzen (wichtig, damit die Links in den Mails stimmen).
 4. `npm start`.
 
+## E-Mails landen im Spam – was tun?
+
+Die häufigste Ursache ist fehlendes **SPF, DKIM und DMARC** für die Absenderdomain. Das ist
+reine DNS-Konfiguration bei deinem Mail-/Domain-Provider, kein Code-Problem:
+
+- **SPF**-Record für die Domain hinter `MAIL_FROM` einrichten, der den SMTP-Server autorisiert.
+- **DKIM** beim SMTP-Provider aktivieren (signiert die Mails kryptografisch).
+- **DMARC**-Record ergänzen, sobald SPF/DKIM stehen.
+
+Zusätzlich hilft:
+- `MAIL_FROM` so setzen, dass die Domain zum SMTP-Anbieter passt (z.B. nicht über einen
+  Fremd-SMTP mit einer `@gmail.com`-Absenderadresse senden – wirkt wie Spoofing).
+- Einen eigenen Mail-Versanddienst (z.B. SMTP von einem Transaktionsmail-Anbieter) statt eines
+  privaten Gmail-Postfachs nutzen, sobald viele Mails verschickt werden.
+
+Im Code wurde bereits gegengesteuert: vollständiges HTML-Grundgerüst statt Fragmenten,
+`Reply-To`-Header, Empfängername in der `To`-Adresse, keine Emojis mehr im Betreff, sowie
+ein kleines Delay zwischen Massen-Sends.
+
 ## Online stellen (damit alle mitmachen können)
 
 Die App ist ein normaler Node-Server und läuft auf jedem Hoster, der Node unterstützt

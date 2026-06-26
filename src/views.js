@@ -179,16 +179,28 @@ ${form}`
   );
 }
 
+function mailStatusBadge(status) {
+  if (!status) return '<span class="muted">—</span>';
+  return status.ok ? '✅' : '❌';
+}
+
 function adminPage(ev, participants, baseUrl, { mailConfigured, message } = {}) {
   const joinUrl = `${baseUrl}/join/${ev.joinCode}`;
   const rows = participants
-    .map(
-      (p) => `<tr>
+    .map((p) => {
+      const status = ev.drawnAt ? p.drawMailStatus : p.inviteMailStatus;
+      return `<tr>
       <td>${esc(p.name)}</td>
-      <td>${esc(p.email)}</td>
+      <td class="email-cell">${esc(p.email)}</td>
       <td>${p.size ? '✅' : '<span class="muted">—</span>'}</td>
-    </tr>`
-    )
+      <td>${mailStatusBadge(status)}</td>
+      <td>
+        <form method="post" action="/admin/${esc(ev.adminToken)}/resend-one/${esc(p.id)}">
+          <button type="submit" class="secondary small-btn">✉️ erneut senden</button>
+        </form>
+      </td>
+    </tr>`;
+    })
     .join('');
 
   const withSize = participants.filter((p) => p.size).length;
@@ -213,10 +225,10 @@ ${copyBox(joinUrl)}
 <strong>Wer wen zieht, siehst auch du nicht.</strong></p>
 ${
   participants.length
-    ? `<table class="list">
-  <thead><tr><th>Name</th><th>E-Mail</th><th>Größe eingetragen</th></tr></thead>
+    ? `<div class="table-wrap"><table class="list">
+  <thead><tr><th>Name</th><th>E-Mail</th><th>Größe eingetragen</th><th>Mail-Status</th><th>Aktion</th></tr></thead>
   <tbody>${rows}</tbody>
-</table>`
+</table></div>`
     : '<p class="muted">Noch niemand eingetragen.</p>'
 }
 
@@ -251,7 +263,7 @@ function simplePage(title, heading, text) {
 function inviteEmail(p, ev, baseUrl) {
   const url = `${baseUrl}/p/${p.token}`;
   return {
-    subject: `👕 ${ev.title}: Du bist dabei!`,
+    subject: `${ev.title}: Du bist dabei!`,
     html: `<p>Hallo ${esc(p.name)},</p>
 <p>du machst bei <strong>${esc(ev.title)}</strong> mit. 🎉</p>
 <p>Hier ist dein <strong>persönlicher, geheimer Link</strong>. Über ihn kannst du deine Größe ändern und siehst
@@ -265,7 +277,7 @@ nach der Auslosung, <strong>wen</strong> du mit einem Shirt beschenkst:</p>
 function drawEmail(p, ev, baseUrl) {
   const url = `${baseUrl}/p/${p.token}`;
   return {
-    subject: `🎁 ${ev.title}: Die Auslosung ist da!`,
+    subject: `${ev.title}: Die Auslosung ist da!`,
     html: `<p>Hallo ${esc(p.name)},</p>
 <p>es ist ausgelost! Klick auf deinen geheimen Link, um zu sehen, <strong>für wen</strong> du ein Shirt besorgst
 und welche <strong>Größe</strong> die Person hat:</p>
