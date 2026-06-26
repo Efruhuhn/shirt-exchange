@@ -126,7 +126,12 @@ app.get('/admin/:adminToken', (req, res) => {
   const ev = loadAdmin(req, res);
   if (!ev) return;
   const participants = store.participantsByEvent(ev.id);
-  res.send(V.adminPage(ev, participants, baseUrl(req), { mailConfigured: mailer.isConfigured() }));
+  res.send(
+    V.adminPage(ev, participants, baseUrl(req), {
+      mailConfigured: mailer.isConfigured(),
+      message: req.query.msg,
+    })
+  );
 });
 
 app.post('/admin/:adminToken/draw', async (req, res) => {
@@ -189,12 +194,7 @@ app.post('/admin/:adminToken/resend', async (req, res) => {
     }
     await mailer.delay(200);
   }
-  res.send(
-    V.adminPage(ev, participants, baseUrl(req), {
-      mailConfigured: mailer.isConfigured(),
-      message: `${sent} Auslosungs-Mail(s) erneut verschickt.`,
-    })
-  );
+  res.redirect(`/admin/${ev.adminToken}?msg=${encodeURIComponent(`${sent} Auslosungs-Mail(s) erneut verschickt.`)}`);
 });
 
 app.post('/admin/:adminToken/resend-one/:participantId', async (req, res) => {
@@ -225,12 +225,7 @@ app.post('/admin/:adminToken/resend-one/:participantId', async (req, res) => {
     message = `E-Mail an ${p.name} fehlgeschlagen: ${err.message}`;
   }
 
-  res.send(
-    V.adminPage(ev, store.participantsByEvent(ev.id), baseUrl(req), {
-      mailConfigured: mailer.isConfigured(),
-      message,
-    })
-  );
+  res.redirect(`/admin/${ev.adminToken}?msg=${encodeURIComponent(message)}`);
 });
 
 app.post('/admin/:adminToken/remove/:participantId', (req, res) => {
