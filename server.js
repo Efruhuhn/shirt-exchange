@@ -197,31 +197,6 @@ app.post('/admin/:adminToken/resend', async (req, res) => {
   );
 });
 
-app.post('/admin/:adminToken/remind', async (req, res) => {
-  const ev = loadAdmin(req, res);
-  if (!ev) return;
-  const participants = store.participantsByEvent(ev.id);
-  const missing = participants.filter((p) => !p.size);
-  let sent = 0;
-  for (const p of missing) {
-    try {
-      await mailer.sendMail({ to: p.email, toName: p.name, ...V.inviteEmail(p, ev, baseUrl(req)) });
-      store.updateParticipant(p.id, { inviteMailStatus: { sentAt: new Date().toISOString(), ok: true } });
-      sent++;
-    } catch (err) {
-      logger.logError('Erinnerung fehlgeschlagen', { email: p.email, error: err.message });
-      store.updateParticipant(p.id, { inviteMailStatus: { sentAt: new Date().toISOString(), ok: false } });
-    }
-    await mailer.delay(200);
-  }
-  res.send(
-    V.adminPage(ev, participants, baseUrl(req), {
-      mailConfigured: mailer.isConfigured(),
-      message: `${sent} Erinnerung(en) verschickt (an alle ohne Größe).`,
-    })
-  );
-});
-
 app.post('/admin/:adminToken/resend-one/:participantId', async (req, res) => {
   const ev = loadAdmin(req, res);
   if (!ev) return;
