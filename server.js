@@ -258,6 +258,24 @@ app.post('/admin/:adminToken/resend-one/:participantId', async (req, res) => {
   );
 });
 
+app.post('/admin/:adminToken/remove/:participantId', (req, res) => {
+  const ev = loadAdmin(req, res);
+  if (!ev) return;
+  if (ev.drawnAt) return res.redirect(`/admin/${ev.adminToken}`);
+
+  const p = store.getParticipant(req.params.participantId);
+  if (!p || p.eventId !== ev.id) return res.redirect(`/admin/${ev.adminToken}`);
+
+  store.removeParticipant(p.id);
+
+  res.send(
+    V.adminPage(ev, store.participantsByEvent(ev.id), baseUrl(req), {
+      mailConfigured: mailer.isConfigured(),
+      message: `${p.name} wurde entfernt.`,
+    })
+  );
+});
+
 app.use((err, req, res, next) => {
   logger.logError('Unbehandelter Fehler', { path: req.path, error: err.message });
   res.status(500).send(V.simplePage('Fehler', 'Ups', 'Da ist etwas schiefgelaufen.'));
