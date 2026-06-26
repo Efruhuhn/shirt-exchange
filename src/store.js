@@ -104,6 +104,11 @@ function updateParticipant(id, fields) {
   return db.participants[id];
 }
 
+function removeParticipant(id) {
+  delete db.participants[id];
+  save();
+}
+
 function setAssignments(pairs) {
   // pairs: [{ giverId, receiverId }]
   for (const { giverId, receiverId } of pairs) {
@@ -124,5 +129,6 @@ module.exports = {
   getParticipant,
   getParticipantByToken,
   updateParticipant,
+  removeParticipant,
   setAssignments,
 };
