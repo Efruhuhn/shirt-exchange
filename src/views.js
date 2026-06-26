@@ -260,10 +260,7 @@ ${
          onsubmit="return confirm('Jetzt endgültig auslosen und alle Mails verschicken?');">
          <button type="submit"${canDraw ? '' : ' disabled'}>🎲 Jetzt auslosen &amp; Mails senden</button>
        </form>
-       ${participants.length < 3 ? '<p class="muted small">Mindestens 3 Teilnehmer:innen nötig.</p>' : ''}
-       <form method="post" action="/admin/${esc(ev.adminToken)}/remind" style="margin-top:1rem">
-         <button type="submit" class="secondary">Erinnerung an alle ohne Größe senden</button>
-       </form>`
+       ${participants.length < 3 ? '<p class="muted small">Mindestens 3 Teilnehmer:innen nötig.</p>' : ''}`
 }`
   );
 }
