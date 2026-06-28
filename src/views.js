@@ -47,6 +47,16 @@ function fitSelect(selected) {
   return `<select name="fit"><option value="">egal / keine Angabe</option>${opts}</select>`;
 }
 
+function stripEmoji(s) {
+  return String(s ?? '')
+    .replace(
+      /[\u{1F1E6}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu,
+      ''
+    )
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function copyBox(url) {
   const id = `cb_${Math.random().toString(36).slice(2, 8)}`;
   return `<div class="copybox">
@@ -179,19 +189,36 @@ ${form}`
   );
 }
 
+function mailStatusBadge(status) {
+  if (!status) return '<span class="muted">—</span>';
+  return status.ok ? '✅' : '❌';
+}
+
 function adminPage(ev, participants, baseUrl, { mailConfigured, message } = {}) {
   const joinUrl = `${baseUrl}/join/${ev.joinCode}`;
   const rows = participants
-    .map(
-      (p) => `<tr>
-      <td>${esc(p.name)}</td>
-      <td>${esc(p.email)}</td>
-      <td>${p.size ? '✅' : '<span class="muted">—</span>'}</td>
-    </tr>`
-    )
+    .map((p) => {
+      const status = ev.drawnAt ? p.drawMailStatus : p.inviteMailStatus;
+      const removeBtn = ev.drawnAt
+        ? ''
+        : `<form method="post" action="/admin/${esc(ev.adminToken)}/remove/${esc(p.id)}"
+            onsubmit="return confirm('${esc(p.name)} wirklich aus der Auslosung entfernen?');">
+          <button type="submit" class="secondary small-btn danger">🗑️ entfernen</button>
+        </form>`;
+      return `<tr>
+      <td data-label="Name">${esc(p.name)}</td>
+      <td data-label="E-Mail" class="email-cell">${esc(p.email)}</td>
+      <td data-label="Mail-Status">${mailStatusBadge(status)}</td>
+      <td data-label="Aktionen" class="actions-cell">
+        <form method="post" action="/admin/${esc(ev.adminToken)}/resend-one/${esc(p.id)}">
+          <button type="submit" class="secondary small-btn">✉️ erneut senden</button>
+        </form>
+        ${removeBtn}
+      </td>
+    </tr>`;
+    })
     .join('');
 
-  const withSize = participants.filter((p) => p.size).length;
   const canDraw = participants.length >= 3 && !ev.drawnAt;
 
   return layout(
@@ -209,14 +236,13 @@ ${copyBox(joinUrl)}
 <p class="muted small">Diesen Link in die Gruppe schicken, damit sich alle eintragen.</p>
 
 <h2>👥 Teilnehmer:innen (${participants.length})</h2>
-<p class="muted small">${withSize} von ${participants.length} haben eine Größe hinterlegt.
-<strong>Wer wen zieht, siehst auch du nicht.</strong></p>
+<p class="muted small"><strong>Wer wen zieht, siehst auch du nicht.</strong></p>
 ${
   participants.length
-    ? `<table class="list">
-  <thead><tr><th>Name</th><th>E-Mail</th><th>Größe eingetragen</th></tr></thead>
+    ? `<div class="table-wrap"><table class="list">
+  <thead><tr><th>Name</th><th>E-Mail</th><th>Mail-Status</th><th>Aktionen</th></tr></thead>
   <tbody>${rows}</tbody>
-</table>`
+</table></div>`
     : '<p class="muted">Noch niemand eingetragen.</p>'
 }
 
@@ -234,10 +260,7 @@ ${
          onsubmit="return confirm('Jetzt endgültig auslosen und alle Mails verschicken?');">
          <button type="submit"${canDraw ? '' : ' disabled'}>🎲 Jetzt auslosen &amp; Mails senden</button>
        </form>
-       ${participants.length < 3 ? '<p class="muted small">Mindestens 3 Teilnehmer:innen nötig.</p>' : ''}
-       <form method="post" action="/admin/${esc(ev.adminToken)}/remind" style="margin-top:1rem">
-         <button type="submit" class="secondary">Erinnerung an alle ohne Größe senden</button>
-       </form>`
+       ${participants.length < 3 ? '<p class="muted small">Mindestens 3 Teilnehmer:innen nötig.</p>' : ''}`
 }`
   );
 }
@@ -251,7 +274,7 @@ function simplePage(title, heading, text) {
 function inviteEmail(p, ev, baseUrl) {
   const url = `${baseUrl}/p/${p.token}`;
   return {
-    subject: `👕 ${ev.title}: Du bist dabei!`,
+    subject: stripEmoji(`${ev.title}: Du bist dabei!`),
     html: `<p>Hallo ${esc(p.name)},</p>
 <p>du machst bei <strong>${esc(ev.title)}</strong> mit. 🎉</p>
 <p>Hier ist dein <strong>persönlicher, geheimer Link</strong>. Über ihn kannst du deine Größe ändern und siehst
@@ -265,7 +288,7 @@ nach der Auslosung, <strong>wen</strong> du mit einem Shirt beschenkst:</p>
 function drawEmail(p, ev, baseUrl) {
   const url = `${baseUrl}/p/${p.token}`;
   return {
-    subject: `🎁 ${ev.title}: Die Auslosung ist da!`,
+    subject: stripEmoji(`${ev.title}: Die Auslosung ist da!`),
     html: `<p>Hallo ${esc(p.name)},</p>
 <p>es ist ausgelost! Klick auf deinen geheimen Link, um zu sehen, <strong>für wen</strong> du ein Shirt besorgst
 und welche <strong>Größe</strong> die Person hat:</p>

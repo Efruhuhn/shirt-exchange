@@ -7,6 +7,7 @@ const store = require('./src/store');
 const { drawAssignments } = require('./src/draw');
 const mailer = require('./src/mailer');
 const V = require('./src/views');
+const logger = require('./src/logger');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -67,9 +68,11 @@ app.post('/join/:code', async (req, res) => {
 
   try {
     const mail = V.inviteEmail(p, ev, baseUrl(req));
-    await mailer.sendMail({ to: p.email, ...mail });
+    await mailer.sendMail({ to: p.email, toName: p.name, ...mail });
+    store.updateParticipant(p.id, { inviteMailStatus: { sentAt: new Date().toISOString(), ok: true } });
   } catch (err) {
-    console.error('Invite-Mail fehlgeschlagen:', err.message);
+    logger.logError('Invite-Mail fehlgeschlagen', { email: p.email, error: err.message });
+    store.updateParticipant(p.id, { inviteMailStatus: { sentAt: new Date().toISOString(), ok: false } });
   }
 
   res.send(
@@ -123,7 +126,12 @@ app.get('/admin/:adminToken', (req, res) => {
   const ev = loadAdmin(req, res);
   if (!ev) return;
   const participants = store.participantsByEvent(ev.id);
-  res.send(V.adminPage(ev, participants, baseUrl(req), { mailConfigured: mailer.isConfigured() }));
+  res.send(
+    V.adminPage(ev, participants, baseUrl(req), {
+      mailConfigured: mailer.isConfigured(),
+      message: req.query.msg,
+    })
+  );
 });
 
 app.post('/admin/:adminToken/draw', async (req, res) => {
@@ -150,11 +158,14 @@ app.post('/admin/:adminToken/draw', async (req, res) => {
   for (const p of participants) {
     try {
       const mail = V.drawEmail(p, refreshed, baseUrl(req));
-      await mailer.sendMail({ to: p.email, ...mail });
+      await mailer.sendMail({ to: p.email, toName: p.name, ...mail });
+      store.updateParticipant(p.id, { drawMailStatus: { sentAt: new Date().toISOString(), ok: true } });
       sent++;
     } catch (err) {
-      console.error(`Auslosungs-Mail an ${p.email} fehlgeschlagen:`, err.message);
+      logger.logError('Auslosungs-Mail fehlgeschlagen', { email: p.email, error: err.message });
+      store.updateParticipant(p.id, { drawMailStatus: { sentAt: new Date().toISOString(), ok: false } });
     }
+    await mailer.delay(200);
   }
 
   res.send(
@@ -174,40 +185,70 @@ app.post('/admin/:adminToken/resend', async (req, res) => {
   let sent = 0;
   for (const p of participants) {
     try {
-      await mailer.sendMail({ to: p.email, ...V.drawEmail(p, ev, baseUrl(req)) });
+      await mailer.sendMail({ to: p.email, toName: p.name, ...V.drawEmail(p, ev, baseUrl(req)) });
+      store.updateParticipant(p.id, { drawMailStatus: { sentAt: new Date().toISOString(), ok: true } });
       sent++;
     } catch (err) {
-      console.error(`Resend an ${p.email} fehlgeschlagen:`, err.message);
+      logger.logError('Resend fehlgeschlagen', { email: p.email, error: err.message });
+      store.updateParticipant(p.id, { drawMailStatus: { sentAt: new Date().toISOString(), ok: false } });
     }
+    await mailer.delay(200);
   }
+  res.redirect(`/admin/${ev.adminToken}?msg=${encodeURIComponent(`${sent} Auslosungs-Mail(s) erneut verschickt.`)}`);
+});
+
+app.post('/admin/:adminToken/resend-one/:participantId', async (req, res) => {
+  const ev = loadAdmin(req, res);
+  if (!ev) return;
+
+  const p = store.getParticipant(req.params.participantId);
+  if (!p || p.eventId !== ev.id) return res.redirect(`/admin/${ev.adminToken}`);
+
+  let message;
+  try {
+    if (ev.drawnAt) {
+      await mailer.sendMail({ to: p.email, toName: p.name, ...V.drawEmail(p, ev, baseUrl(req)) });
+      store.updateParticipant(p.id, { drawMailStatus: { sentAt: new Date().toISOString(), ok: true } });
+    } else {
+      await mailer.sendMail({ to: p.email, toName: p.name, ...V.inviteEmail(p, ev, baseUrl(req)) });
+      store.updateParticipant(p.id, { inviteMailStatus: { sentAt: new Date().toISOString(), ok: true } });
+    }
+    message = `E-Mail an ${p.name} erneut verschickt.`;
+  } catch (err) {
+    logger.logError('Einzel-Resend fehlgeschlagen', { email: p.email, error: err.message });
+    store.updateParticipant(
+      p.id,
+      ev.drawnAt
+        ? { drawMailStatus: { sentAt: new Date().toISOString(), ok: false } }
+        : { inviteMailStatus: { sentAt: new Date().toISOString(), ok: false } }
+    );
+    message = `E-Mail an ${p.name} fehlgeschlagen: ${err.message}`;
+  }
+
+  res.redirect(`/admin/${ev.adminToken}?msg=${encodeURIComponent(message)}`);
+});
+
+app.post('/admin/:adminToken/remove/:participantId', (req, res) => {
+  const ev = loadAdmin(req, res);
+  if (!ev) return;
+  if (ev.drawnAt) return res.redirect(`/admin/${ev.adminToken}`);
+
+  const p = store.getParticipant(req.params.participantId);
+  if (!p || p.eventId !== ev.id) return res.redirect(`/admin/${ev.adminToken}`);
+
+  store.removeParticipant(p.id);
+
   res.send(
-    V.adminPage(ev, participants, baseUrl(req), {
+    V.adminPage(ev, store.participantsByEvent(ev.id), baseUrl(req), {
       mailConfigured: mailer.isConfigured(),
-      message: `${sent} Auslosungs-Mail(s) erneut verschickt.`,
+      message: `${p.name} wurde entfernt.`,
     })
   );
 });
 
-app.post('/admin/:adminToken/remind', async (req, res) => {
-  const ev = loadAdmin(req, res);
-  if (!ev) return;
-  const participants = store.participantsByEvent(ev.id);
-  const missing = participants.filter((p) => !p.size);
-  let sent = 0;
-  for (const p of missing) {
-    try {
-      await mailer.sendMail({ to: p.email, ...V.inviteEmail(p, ev, baseUrl(req)) });
-      sent++;
-    } catch (err) {
-      console.error(`Erinnerung an ${p.email} fehlgeschlagen:`, err.message);
-    }
-  }
-  res.send(
-    V.adminPage(ev, participants, baseUrl(req), {
-      mailConfigured: mailer.isConfigured(),
-      message: `${sent} Erinnerung(en) verschickt (an alle ohne Größe).`,
-    })
-  );
+app.use((err, req, res, next) => {
+  logger.logError('Unbehandelter Fehler', { path: req.path, error: err.message });
+  res.status(500).send(V.simplePage('Fehler', 'Ups', 'Da ist etwas schiefgelaufen.'));
 });
 
 app.listen(PORT, () => {
